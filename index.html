@@ -1,0 +1,419 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Septaglow — A Seven-Light Puzzle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..500&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0e13;
+    --bg-2: #14151c;
+    --gold: #b8892b;
+    --gold-bright: #ffcf3f;
+    --gold-glow: rgba(255, 207, 63, 0.55);
+    --dim: #4a4a52;
+    --text: #d8d2c0;
+    --line: rgba(184, 137, 43, 0.35);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body {
+    background-image:
+      radial-gradient(circle at 25% 20%, rgba(184, 137, 43, 0.06) 0%, transparent 45%),
+      radial-gradient(circle at 75% 80%, rgba(184, 137, 43, 0.04) 0%, transparent 45%),
+      repeating-linear-gradient(0deg, transparent 0, transparent 2px, rgba(255,255,255,0.008) 2px, rgba(255,255,255,0.008) 3px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    gap: 1.25rem;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .title {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: clamp(2.2rem, 5vw, 3.2rem);
+    color: var(--text);
+    letter-spacing: 0.01em;
+    line-height: 1;
+  }
+
+  .title .accent {
+    color: var(--gold-bright);
+    font-weight: 400;
+  }
+
+  .subtitle {
+    margin-top: 0.6rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  .board-wrap {
+    position: relative;
+  }
+
+  .board {
+    position: relative;
+    width: min(560px, 92vw);
+    aspect-ratio: 1 / 1;
+  }
+
+  .circle-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  .node {
+    position: absolute;
+    transform: translate(-50%, -50%);
+  }
+
+  /* ---- Lights ---- */
+  .light {
+    width: 11%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    border: 1.5px solid var(--gold);
+    background: rgba(184, 137, 43, 0.04);
+    transition: background 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease, transform 0.35s cubic-bezier(.2,.8,.2,1);
+  }
+
+  .light::after {
+    content: '';
+    position: absolute;
+    inset: 22%;
+    border-radius: 50%;
+    background: var(--gold);
+    opacity: 0.15;
+    transition: opacity 0.35s ease, background 0.35s ease, box-shadow 0.35s ease;
+  }
+
+  .light.on {
+    background: radial-gradient(circle, #fff5d6 0%, var(--gold-bright) 45%, var(--gold) 90%);
+    border-color: var(--gold-bright);
+    box-shadow:
+      0 0 22px var(--gold-glow),
+      0 0 48px rgba(255, 207, 63, 0.28),
+      inset 0 0 12px rgba(255, 245, 200, 0.7);
+  }
+
+  .light.on::after {
+    background: #fff7d6;
+    opacity: 1;
+    box-shadow: 0 0 14px #fff;
+  }
+
+  /* ---- Switches ---- */
+  .switch {
+    width: 8%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    border: 1px solid var(--gold);
+    background: var(--bg-2);
+    color: var(--text);
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: clamp(0.7rem, 1.5vw, 0.95rem);
+    font-weight: 400;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    user-select: none;
+    padding: 0;
+  }
+
+  .switch:hover {
+    background: rgba(184, 137, 43, 0.18);
+    border-color: var(--gold-bright);
+    box-shadow: 0 0 14px rgba(255, 207, 63, 0.25);
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+
+  .switch:active {
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+
+  .switch.pulse {
+    animation: pulse 0.45s ease-out;
+  }
+
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(255, 207, 63, 0.6); }
+    100% { box-shadow: 0 0 0 18px rgba(255, 207, 63, 0); }
+  }
+
+  /* ---- Status row ---- */
+  .status {
+    display: flex;
+    gap: 2.5rem;
+    align-items: center;
+    font-size: 0.72rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  .status strong {
+    color: var(--text);
+    font-weight: 500;
+    margin-left: 0.5em;
+  }
+
+  /* ---- Controls ---- */
+  .controls {
+    display: flex;
+    gap: 1rem;
+  }
+
+  button.btn {
+    background: transparent;
+    border: 1px solid var(--gold);
+    color: var(--text);
+    padding: 0.7rem 1.8rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  button.btn:hover {
+    background: var(--gold-bright);
+    border-color: var(--gold-bright);
+    color: var(--bg);
+    box-shadow: 0 0 22px rgba(255, 207, 63, 0.3);
+  }
+
+  /* ---- Win message ---- */
+  .win-message {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 1.4rem;
+    color: var(--gold-bright);
+    height: 1.6em;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+    text-align: center;
+  }
+
+  .win-message.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @keyframes celebrate {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50%      { transform: translate(-50%, -50%) scale(1.18); }
+  }
+
+  .light.celebrating {
+    animation: celebrate 1.4s ease-in-out infinite;
+  }
+
+  .footnote {
+    font-size: 0.65rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--dim);
+    text-align: center;
+    max-width: 30rem;
+    line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <h1 class="title">Sept<span class="accent">a</span>glow</h1>
+    <div class="subtitle">A Seven-Light Puzzle</div>
+  </div>
+
+  <div class="board-wrap">
+    <div class="board" id="board">
+      <svg class="circle-svg" id="svg" viewBox="0 0 560 560" preserveAspectRatio="xMidYMid meet"></svg>
+      <!-- lights and switches injected here -->
+    </div>
+  </div>
+
+  <div class="status">
+    <span>Moves <strong id="moves">0</strong></span>
+    <span>Lit <strong id="lit">0</strong>/7</span>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="reset">Reset</button>
+  </div>
+
+  <div class="win-message" id="winMessage">All seven aglow.</div>
+
+  <div class="footnote">
+    Each switch toggles its own light and its two neighbours. Light them all.
+  </div>
+
+<script>
+  const N = 7;
+  const VIEW = 560;
+  const cx = VIEW / 2, cy = VIEW / 2;
+  const lightR = 175;   // radius for light positions, in svg coords
+  const switchR = 250;  // radius for switch positions
+
+  const board = document.getElementById('board');
+  const svg = document.getElementById('svg');
+  const movesEl = document.getElementById('moves');
+  const litEl = document.getElementById('lit');
+  const winMessage = document.getElementById('winMessage');
+
+  const state = Array(N).fill(false);
+  let moves = 0;
+  let won = false;
+
+  const NS = 'http://www.w3.org/2000/svg';
+
+  // --- Draw the connecting circle (decorative) ---
+  const arc = document.createElementNS(NS, 'circle');
+  arc.setAttribute('cx', cx);
+  arc.setAttribute('cy', cy);
+  arc.setAttribute('r', lightR);
+  arc.setAttribute('fill', 'none');
+  arc.setAttribute('stroke', '#b8892b');
+  arc.setAttribute('stroke-width', '0.6');
+  arc.setAttribute('stroke-dasharray', '1.5 5');
+  arc.setAttribute('opacity', '0.45');
+  svg.appendChild(arc);
+
+  // --- Build nodes ---
+  const lightEls = [];
+  const switchEls = [];
+
+  // Convert svg coords to percentage for absolute positioning in .board
+  const toPct = (v) => (v / VIEW) * 100;
+
+  for (let i = 0; i < N; i++) {
+    const angle = (i / N) * 2 * Math.PI - Math.PI / 2; // start at top
+    const lx = cx + lightR * Math.cos(angle);
+    const ly = cy + lightR * Math.sin(angle);
+    const sx = cx + switchR * Math.cos(angle);
+    const sy = cy + switchR * Math.sin(angle);
+
+    // Connector line from switch to its light
+    const line = document.createElementNS(NS, 'line');
+    line.setAttribute('x1', lx);
+    line.setAttribute('y1', ly);
+    line.setAttribute('x2', sx);
+    line.setAttribute('y2', sy);
+    line.setAttribute('stroke', '#b8892b');
+    line.setAttribute('stroke-width', '0.6');
+    line.setAttribute('opacity', '0.35');
+    svg.appendChild(line);
+
+    // Light element
+    const light = document.createElement('div');
+    light.className = 'node light';
+    light.style.left = toPct(lx) + '%';
+    light.style.top  = toPct(ly) + '%';
+    light.dataset.idx = i;
+    board.appendChild(light);
+    lightEls.push(light);
+
+    // Switch element
+    const sw = document.createElement('button');
+    sw.className = 'node switch';
+    sw.style.left = toPct(sx) + '%';
+    sw.style.top  = toPct(sy) + '%';
+    sw.textContent = romanize(i + 1);
+    sw.setAttribute('aria-label', `Switch ${i + 1}`);
+    sw.addEventListener('click', () => onSwitch(i, sw));
+    board.appendChild(sw);
+    switchEls.push(sw);
+  }
+
+  function romanize(n) {
+    return ['I','II','III','IV','V','VI','VII'][n - 1] || String(n);
+  }
+
+  function onSwitch(i, el) {
+    if (won) return;
+    const targets = [(i - 1 + N) % N, i, (i + 1) % N];
+    targets.forEach(t => { state[t] = !state[t]; });
+    moves++;
+
+    // brief pulse animation on the switch
+    el.classList.remove('pulse');
+    // force reflow so the animation can replay
+    void el.offsetWidth;
+    el.classList.add('pulse');
+
+    render();
+    checkWin();
+  }
+
+  function render() {
+    let lit = 0;
+    for (let i = 0; i < N; i++) {
+      lightEls[i].classList.toggle('on', state[i]);
+      if (state[i]) lit++;
+    }
+    movesEl.textContent = moves;
+    litEl.textContent = lit;
+  }
+
+  function checkWin() {
+    if (state.every(s => s)) {
+      won = true;
+      lightEls.forEach((el, i) => {
+        el.style.animationDelay = (i * 0.12) + 's';
+        el.classList.add('celebrating');
+      });
+      winMessage.classList.add('show');
+    }
+  }
+
+  function reset() {
+    for (let i = 0; i < N; i++) state[i] = false;
+    moves = 0;
+    won = false;
+    lightEls.forEach(el => {
+      el.classList.remove('celebrating');
+      el.style.animationDelay = '';
+    });
+    winMessage.classList.remove('show');
+    render();
+  }
+
+  document.getElementById('reset').addEventListener('click', reset);
+
+  // initial render
+  render();
+</script>
+</body>
+</html>
